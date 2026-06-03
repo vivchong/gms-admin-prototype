@@ -17,7 +17,7 @@ const navItems = [
   { label: 'Dashboard', icon: LayoutGrid, path: '/' },
   { label: 'Sports', icon: Trophy, path: '/sports' },
   { label: 'Registrations', icon: ClipboardList, path: '/registrations' },
-  { label: 'Document Review', icon: FileCheck, path: '/document-review' },
+  { label: 'Pending review', icon: FileCheck, path: '/document-review' },
   { label: 'Refunds & Payments', icon: CreditCard, path: '/refunds' },
   { label: 'Indemnity', icon: FileText, path: '/indemnity' },
   { label: 'Comms', icon: Megaphone, path: '/comms' },

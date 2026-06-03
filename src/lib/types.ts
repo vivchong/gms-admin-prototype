@@ -61,6 +61,7 @@ export type Sport = {
   registrationCloseAt?: string
   lastChangeDate?: string
   rulesRegulationPdfUrl?: string
+  formats?: string[]
   maxEventsPerParticipant?: number
   exemptCategoryIds: string[]
   customQuestions: FormQuestion[]

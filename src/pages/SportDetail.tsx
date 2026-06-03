@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { MoreHorizontal, Plus, Search } from 'lucide-react'
+import { MoreHorizontal, Plus, Search, Trash2, PlusCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -130,9 +130,6 @@ export function SportDetail() {
               >
                 {sport.events.some((e) => e.publicationStatus === 'published') ? 'Has published events' : 'Draft'}
               </Badge>
-              <Button size="sm" onClick={openEditModal}>
-                Edit sport
-              </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="h-8 w-8 p-0">
@@ -154,35 +151,35 @@ export function SportDetail() {
 
         {/* Sport details shown in header */}
         <div className="grid grid-cols-2 gap-x-8 gap-y-2 pb-6 max-w-[720px]">
-          <div>
-            <p className="text-xs text-neutral-500">Pricing type</p>
-            <p className="text-sm text-neutral-900">{pricingLabel}</p>
-          </div>
           {sport.description && (
             <div className="col-span-2">
               <p className="text-xs text-neutral-500">Description</p>
               <p className="text-sm text-neutral-900">{sport.description}</p>
             </div>
           )}
+          <div className="space-y-2">
+            <div>
+              <p className="text-xs text-neutral-500">Registration window</p>
+              <p className="text-sm text-neutral-900">{formatDate(sport.registrationOpenAt)} – {formatDate(sport.registrationCloseAt)}</p>
+            </div>
+            {sport.lastChangeDate && (
+              <div>
+                <p className="text-xs text-neutral-500">Last date for registration changes</p>
+                <p className="text-sm text-neutral-900">{formatDate(sport.lastChangeDate)}</p>
+              </div>
+            )}
+          </div>
           <div>
-            <p className="text-xs text-neutral-500">Competition window</p>
+            <p className="text-xs text-neutral-500">Competition period</p>
             <p className="text-sm text-neutral-900">{formatDate(sport.competitionDates.start)} – {formatDate(sport.competitionDates.end)}</p>
           </div>
-          <div>
-            <p className="text-xs text-neutral-500">Registration window</p>
-            <p className="text-sm text-neutral-900">{formatDate(sport.registrationOpenAt)} – {formatDate(sport.registrationCloseAt)}</p>
-          </div>
-          {sport.lastChangeDate && (
-            <div>
-              <p className="text-xs text-neutral-500">Last date for changes</p>
-              <p className="text-sm text-neutral-900">{formatDate(sport.lastChangeDate)}</p>
-            </div>
-          )}
+          
         </div>
 
 <Tabs defaultValue="events">
           <TabsList variant="line" className="border-b border-neutral-200">
             <TabsTrigger value="events">Events</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
             <TabsTrigger value="rules">Rules</TabsTrigger>
             <TabsTrigger value="form-questions">Additional form questions</TabsTrigger>
           </TabsList>
@@ -192,6 +189,10 @@ export function SportDetail() {
             <div className="max-w-[840px]">
               <TabsContent value="events">
                 <EventsTab sport={sport} sportId={sportId!} />
+              </TabsContent>
+
+              <TabsContent value="settings">
+                <SettingsTab sport={sport} sportId={sportId!} updateSport={updateSport} />
               </TabsContent>
 
               <TabsContent value="rules">
@@ -210,6 +211,15 @@ export function SportDetail() {
                       updateSport(sportId!, { customQuestions: [...updated, ...teamQs] })
                       toast('Form questions updated')
                     }}
+                    defaultFields={[
+                      { label: 'Name of athlete', type: 'Short answer' },
+                      { label: 'NRIC or FIN', type: 'Short answer' },
+                      { label: 'Citizenship / Residency status', type: 'Short answer' },
+                      { label: 'Date of birth', type: 'Short answer' },
+                      { label: 'Gender', type: 'Short answer' },
+                      { label: 'Mobile number', type: 'Short answer' },
+                      { label: 'Email address', type: 'Short answer' },
+                    ]}
                   />
                   <FormBuilder
                     section="team"
@@ -221,6 +231,9 @@ export function SportDetail() {
                       updateSport(sportId!, { customQuestions: [...athleteQs, ...updated] })
                       toast('Form questions updated')
                     }}
+                    defaultFields={[
+                      { label: 'Team name', type: 'Short answer' },
+                    ]}
                   />
                 </div>
               </TabsContent>
@@ -546,3 +559,292 @@ function RulesTab({ sport, sportId, updateSport }: {
   )
 }
 
+function SettingsTab({ sport, sportId, updateSport }: {
+  sport: ReturnType<typeof useStore.getState>['workspace']['sports'][number]
+  sportId: string
+  updateSport: (id: string, updates: Partial<typeof sport>) => void
+}) {
+  const workspace = useStore((s) => s.workspace)
+
+  const [editingDetails, setEditingDetails] = useState(false)
+  const [detailName, setDetailName] = useState(sport.name)
+  const [detailPricing, setDetailPricing] = useState(sport.pricingType)
+  const [detailDescription, setDetailDescription] = useState(sport.description || '')
+  const [detailVenue, setDetailVenue] = useState(sport.venue || '')
+
+  const [editingTimelines, setEditingTimelines] = useState(false)
+  const [tlRegOpen, setTlRegOpen] = useState(sport.registrationOpenAt || '')
+  const [tlRegClose, setTlRegClose] = useState(sport.registrationCloseAt || '')
+  const [tlLastChange, setTlLastChange] = useState(sport.lastChangeDate || '')
+  const [tlCompStart, setTlCompStart] = useState(sport.competitionDates.start)
+  const [tlCompEnd, setTlCompEnd] = useState(sport.competitionDates.end)
+
+  const [editingFormats, setEditingFormats] = useState(false)
+  const [fmtList, setFmtList] = useState<string[]>(sport.formats || [])
+
+  function saveDetails() {
+    updateSport(sportId, {
+      name: detailName.trim(),
+      pricingType: detailPricing,
+      description: detailDescription.trim() || undefined,
+      venue: detailVenue.trim() || undefined,
+    })
+    setEditingDetails(false)
+    toast('Sport details updated')
+  }
+
+  function cancelDetails() {
+    setDetailName(sport.name)
+    setDetailPricing(sport.pricingType)
+    setDetailDescription(sport.description || '')
+    setDetailVenue(sport.venue || '')
+    setEditingDetails(false)
+  }
+
+  function saveTimelines() {
+    updateSport(sportId, {
+      registrationOpenAt: tlRegOpen || undefined,
+      registrationCloseAt: tlRegClose || undefined,
+      lastChangeDate: tlLastChange || undefined,
+      competitionDates: { start: tlCompStart, end: tlCompEnd },
+    })
+    setEditingTimelines(false)
+    toast('Timelines updated')
+  }
+
+  function cancelTimelines() {
+    setTlRegOpen(sport.registrationOpenAt || '')
+    setTlRegClose(sport.registrationCloseAt || '')
+    setTlLastChange(sport.lastChangeDate || '')
+    setTlCompStart(sport.competitionDates.start)
+    setTlCompEnd(sport.competitionDates.end)
+    setEditingTimelines(false)
+  }
+
+  function saveFormats() {
+    const filled = fmtList.map((f) => f.trim()).filter(Boolean)
+    updateSport(sportId, { formats: filled.length > 0 ? filled : undefined })
+    setEditingFormats(false)
+    toast('Format filters updated')
+  }
+
+  function cancelFormats() {
+    setFmtList(sport.formats || [])
+    setEditingFormats(false)
+  }
+
+  const pricingLabel = sport.pricingType === 'per_event' ? 'Per event' : 'Bundle'
+  void workspace
+
+  return (
+    <div className="space-y-6">
+      {/* Sport details */}
+      <Card className="py-0 gap-0">
+        <CardContent className="p-0">
+          <div className="px-6 py-4 border-b border-neutral-200 flex items-center justify-between">
+            <h3 className="text-base font-semibold text-neutral-900">Sport details</h3>
+            {!editingDetails && (
+              <Button variant="outline" size="sm" onClick={() => setEditingDetails(true)}>Edit</Button>
+            )}
+          </div>
+          <div className="px-6 py-6">
+            {editingDetails ? (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Name of sport</Label>
+                  <Input value={detailName} onChange={(e) => setDetailName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Pricing type</Label>
+                  <Select value={detailPricing} onValueChange={(v) => setDetailPricing(v as 'per_event' | 'bundle')}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="per_event">Per event</SelectItem>
+                      <SelectItem value="bundle">Bundle</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Textarea value={detailDescription} onChange={(e) => setDetailDescription(e.target.value)} placeholder="Optional" rows={2} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Venue</Label>
+                  <Input value={detailVenue} onChange={(e) => setDetailVenue(e.target.value)} placeholder="Optional" />
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button size="sm" onClick={saveDetails} disabled={!detailName.trim()}>Save</Button>
+                  <Button size="sm" variant="outline" onClick={cancelDetails}>Cancel</Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs text-neutral-500">Name of sport</p>
+                  <p className="text-sm text-neutral-900">{sport.name}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-neutral-500">Pricing type</p>
+                  <p className="text-sm text-neutral-900">{pricingLabel}</p>
+                </div>
+                {sport.description && (
+                  <div>
+                    <p className="text-xs text-neutral-500">Description</p>
+                    <p className="text-sm text-neutral-900">{sport.description}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-xs text-neutral-500">Venue</p>
+                  <p className="text-sm text-neutral-900">{sport.venue || '—'}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Timelines & schedules */}
+      <Card className="py-0 gap-0">
+        <CardContent className="p-0">
+          <div className="px-6 py-4 border-b border-neutral-200 flex items-center justify-between">
+            <h3 className="text-base font-semibold text-neutral-900">Timelines & schedules</h3>
+            {!editingTimelines && (
+              <Button variant="outline" size="sm" onClick={() => setEditingTimelines(true)}>Edit</Button>
+            )}
+          </div>
+          <div className="px-6 py-6">
+            {editingTimelines ? (
+              <div className="space-y-4">
+                <div>
+                  <Label className="mb-2 block">Registration window</Label>
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-neutral-500 font-normal">Opens</Label>
+                      <Input type="date" value={tlRegOpen} onChange={(e) => setTlRegOpen(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-neutral-500 font-normal">Closes</Label>
+                      <Input type="date" value={tlRegClose} onChange={(e) => setTlRegClose(e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+                <div className="border-t border-neutral-200 pt-4 space-y-2">
+                  <Label>Last date for registration changes</Label>
+                  <Input type="date" value={tlLastChange} onChange={(e) => setTlLastChange(e.target.value)} />
+                </div>
+                <div className="border-t border-neutral-200 pt-4">
+                  <Label className="mb-2 block">Competition period</Label>
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-neutral-500 font-normal">Start date</Label>
+                      <Input type="date" value={tlCompStart} onChange={(e) => setTlCompStart(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-neutral-500 font-normal">End date</Label>
+                      <Input type="date" value={tlCompEnd} onChange={(e) => setTlCompEnd(e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button size="sm" onClick={saveTimelines}>Save</Button>
+                  <Button size="sm" variant="outline" onClick={cancelTimelines}>Cancel</Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs text-neutral-500">Registration window</p>
+                  <p className="text-sm text-neutral-900">{formatDate(sport.registrationOpenAt)} – {formatDate(sport.registrationCloseAt)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-neutral-500">Last date for registration changes</p>
+                  <p className="text-sm text-neutral-900">{formatDate(sport.lastChangeDate)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-neutral-500">Competition period</p>
+                  <p className="text-sm text-neutral-900">{formatDate(sport.competitionDates.start)} – {formatDate(sport.competitionDates.end)}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Format filters */}
+      <Card className="py-0 gap-0">
+        <CardContent className="p-0">
+          <div className="px-6 py-4 border-b border-neutral-200 flex items-center justify-between">
+            <h3 className="text-base font-semibold text-neutral-900">Format filters</h3>
+            {!editingFormats && (
+              <Button variant="outline" size="sm" onClick={() => { setFmtList(sport.formats || []); setEditingFormats(true) }}>Edit</Button>
+            )}
+          </div>
+          <div className="px-6 py-6">
+            {editingFormats ? (
+              <div className="space-y-4">
+                <p className="text-sm text-neutral-700">
+                  Create filters for each format in your sport, so users can easily find events.
+                </p>
+                <div className="space-y-2">
+                  <Label className="font-semibold">Formats</Label>
+                  <p className="text-xs text-neutral-500">Each label should not exceed 50 characters</p>
+                  <div className="space-y-3">
+                    {fmtList.map((fmt, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <Input
+                          value={fmt}
+                          onChange={(e) => {
+                            const updated = [...fmtList]
+                            updated[i] = e.target.value.slice(0, 50)
+                            setFmtList(updated)
+                          }}
+                          maxLength={50}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setFmtList(fmtList.filter((_, idx) => idx !== i))}
+                          className="p-2 text-blue-600 hover:text-red-600 hover:bg-red-50 rounded shrink-0"
+                        >
+                          <Trash2 className="h-4.5 w-4.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFmtList([...fmtList, ''])}
+                    className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 mt-3"
+                  >
+                    <PlusCircle className="h-4 w-4" />
+                    Add another format
+                  </button>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button size="sm" onClick={saveFormats}>Save</Button>
+                  <Button size="sm" variant="outline" onClick={cancelFormats}>Cancel</Button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                {sport.formats && sport.formats.length > 0 ? (
+                  <div>
+                    <p className="text-sm font-semibold text-neutral-900 mb-2">Formats</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      {sport.formats.map((fmt, i) => (
+                        <li key={i} className="text-sm text-neutral-900">{fmt}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="text-sm text-neutral-500">No format filters defined.</p>
+                )}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

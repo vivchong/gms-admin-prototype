@@ -16,11 +16,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useStore } from '@/lib/store'
-import { FormBuilder } from '@/components/forms/FormBuilder'
 import { PreviewPanel } from '@/components/preview/PreviewPanel'
 import { EventDetailsPreview } from '@/components/preview/EventDetailsPreview'
-import { RegistrationFormPreview } from '@/components/preview/RegistrationFormPreview'
-import type { SportEvent, FormQuestion } from '@/lib/types'
+import type { SportEvent } from '@/lib/types'
 
 export function CreateEvent() {
   const { sportId } = useParams()
@@ -29,15 +27,18 @@ export function CreateEvent() {
   const saveEvent = useStore((s) => s.saveEvent)
   const sport = workspace.sports.find((s) => s.id === sportId)
 
-  const [step, setStep] = useState(1)
 
   // Step 1 fields
   const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
   const [categoryId, setCategoryId] = useState('')
+  const [formatValue, setFormatValue] = useState('')
   const [capacity, setCapacity] = useState('')
   const [compStart, setCompStart] = useState(sport?.competitionDates.start || '')
   const [compEnd, setCompEnd] = useState(sport?.competitionDates.end || '')
+  const [eventVenue, setEventVenue] = useState(sport?.venue || '')
+  const [regOpen, setRegOpen] = useState(sport?.registrationOpenAt || '')
+  const [regClose, setRegClose] = useState(sport?.registrationCloseAt || '')
+  const [lastChangeDate, setLastChangeDate] = useState(sport?.lastChangeDate || '')
   const [gender, setGender] = useState<'male' | 'female' | 'mixed' | ''>('')
   const [minAge, setMinAge] = useState('')
   const [hasMaxAge, setHasMaxAge] = useState(false)
@@ -48,17 +49,18 @@ export function CreateEvent() {
   const [teamGenderMix, setTeamGenderMix] = useState<string>('mixed_any')
   const [combinedAgeMin, setCombinedAgeMin] = useState('')
   const [combinedAgeMax, setCombinedAgeMax] = useState('')
-  const [foreignerQuota, setForeignerQuota] = useState<'general_rnr_default' | 'custom'>('general_rnr_default')
-  const [customMinSgPr, setCustomMinSgPr] = useState('')
-  const [customMaxForeigners, setCustomMaxForeigners] = useState('')
+  const [foreignerQuota] = useState<'general_rnr_default' | 'custom'>('general_rnr_default')
   const [corpStaffRatio, setCorpStaffRatio] = useState('')
   const [corpMinSgPr, setCorpMinSgPr] = useState('')
   const [corpMaxNonStaff, setCorpMaxNonStaff] = useState('')
+  const [hasAdditionalEligibility, setHasAdditionalEligibility] = useState(false)
+  const [additionalEligibility, setAdditionalEligibility] = useState('Requirement 1\nRequirement 2')
+  const [hasTeamAdditionalEligibility, setHasTeamAdditionalEligibility] = useState(false)
+  const [teamAdditionalEligibility, setTeamAdditionalEligibility] = useState('Requirement 1\nRequirement 2')
   const [isParentChild, setIsParentChild] = useState(false)
   const [childMinAge, setChildMinAge] = useState('')
   const [childMaxAge, setChildMaxAge] = useState('')
   const [requireApproval, setRequireApproval] = useState(false)
-  const [eventQuestions, setEventQuestions] = useState<FormQuestion[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const formRef = useRef<HTMLDivElement>(null)
 
@@ -74,22 +76,10 @@ export function CreateEvent() {
     const errs: Record<string, string> = {}
     if (!name.trim()) errs.name = 'Event name is required'
     if (!categoryId) errs.category = 'Category is required'
+    if (sport && sport.formats && sport.formats.length > 0 && !formatValue) errs.format = 'Format is required'
     return errs
   }
 
-  function handleNext() {
-    const errs = validate()
-    setErrors(errs)
-    if (Object.keys(errs).length > 0) {
-      setTimeout(() => {
-        const firstError = formRef.current?.querySelector('[data-error="true"]')
-        firstError?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }, 0)
-      return
-    }
-    setStep(2)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
 
   function computeFee(): number | undefined {
     if (!categoryId) return undefined
@@ -108,11 +98,21 @@ export function CreateEvent() {
   }
 
   function handleSave() {
+    const errs = validate()
+    setErrors(errs)
+    if (Object.keys(errs).length > 0) {
+      setTimeout(() => {
+        const firstError = formRef.current?.querySelector('[data-error="true"]')
+        firstError?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 0)
+      return
+    }
+
     const event: SportEvent = {
       id: `event-${Date.now()}`,
       sportId: sportId!,
       name: name.trim(),
-      description: description.trim() || undefined,
+      description: undefined,
       categoryId,
       gender: gender || undefined,
       ageRange: {
@@ -129,7 +129,7 @@ export function CreateEvent() {
         genderMix: getEffectiveGenderMix(),
         combinedAge: (combinedAgeMin || combinedAgeMax) ? { min: combinedAgeMin ? parseInt(combinedAgeMin) : undefined, max: combinedAgeMax ? parseInt(combinedAgeMax) : undefined } : undefined,
         foreignerQuota,
-        foreignerQuotaCustom: foreignerQuota === 'custom' ? { minSgPrRatio: customMinSgPr ? parseFloat(customMinSgPr) : undefined, maxForeigners: customMaxForeigners ? parseInt(customMaxForeigners) : undefined } : undefined,
+        foreignerQuotaCustom: undefined,
         corporateStaffRatio: isCorporate && corpStaffRatio ? parseFloat(corpStaffRatio) : undefined,
         minSgPrAmongStaff: isCorporate && corpMinSgPr ? parseFloat(corpMinSgPr) : undefined,
         maxNonStaffPlayers: isCorporate && corpMaxNonStaff ? parseInt(corpMaxNonStaff) : undefined,
@@ -137,7 +137,7 @@ export function CreateEvent() {
       isParentChildEvent: isTeamEvent && isParentChild,
       childAgeRange: isTeamEvent && isParentChild ? { minAge: childMinAge ? parseInt(childMinAge) : undefined, maxAge: childMaxAge ? parseInt(childMaxAge) : undefined } : undefined,
       requireApproval,
-      customQuestions: eventQuestions,
+      customQuestions: [],
       publicationStatus: 'draft',
     }
 
@@ -160,27 +160,14 @@ export function CreateEvent() {
         ]}
       />
 
-      <div className="flex items-center gap-4 mb-6">
-        <div className={`flex items-center gap-2 text-sm ${step === 1 ? 'text-neutral-900 font-medium' : 'text-neutral-500'}`}>
-          <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${step === 1 ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-600'}`}>1</span>
-          Event details
-        </div>
-        <div className="h-px w-8 bg-neutral-300" />
-        <div className={`flex items-center gap-2 text-sm ${step === 2 ? 'text-neutral-900 font-medium' : 'text-neutral-500'}`}>
-          <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${step === 2 ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-600'}`}>2</span>
-          Additional form questions
-        </div>
-      </div>
-
-      {step === 1 && (
-        <div ref={formRef} className="max-w-2xl space-y-6">
-          {/* Overview section */}
+      <div ref={formRef} className="max-w-2xl space-y-6">
+          {/* Event details section */}
           <Card>
             <CardContent>
-              <h3 className="text-base font-semibold text-neutral-900 pb-4 border-b border-neutral-200 mb-4">Overview</h3>
+              <h3 className="text-base font-semibold text-neutral-900 pb-4 border-b border-neutral-200 mb-4">Event details</h3>
               <div className="space-y-4">
                 <div className="space-y-2" data-error={!!errors.name}>
-                  <Label>Event name</Label>
+                  <Label>Name of event</Label>
                   <Input
                     value={name}
                     onChange={(e) => { setName(e.target.value); if (errors.name) setErrors((prev) => ({ ...prev, name: '' })) }}
@@ -188,10 +175,6 @@ export function CreateEvent() {
                     className={errors.name ? 'border-red-500 focus-visible:ring-red-500' : ''}
                   />
                   {errors.name && <p className="text-xs text-red-600">{errors.name}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label>Description</Label>
-                  <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional narrative description" rows={2} />
                 </div>
                 <div className="space-y-2" data-error={!!errors.category}>
                   <Label>Category</Label>
@@ -207,26 +190,81 @@ export function CreateEvent() {
                   </Select>
                   {errors.category && <p className="text-xs text-red-600">{errors.category}</p>}
                 </div>
+                {sport.formats && sport.formats.length > 0 && (
+                  <div className="space-y-2" data-error={!!errors.format}>
+                    <Label>Format</Label>
+                    <p className="text-xs text-neutral-500">Assign a format so users can filter for events with this format.</p>
+                    <Select value={formatValue} onValueChange={(v) => { setFormatValue(v); if (errors.format) setErrors((prev) => ({ ...prev, format: '' })) }}>
+                      <SelectTrigger className={`w-full ${errors.format ? 'border-red-500' : ''}`}>
+                        <SelectValue placeholder="Select a format" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sport.formats.map((fmt) => (
+                          <SelectItem key={fmt} value={fmt}>{fmt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.format && <p className="text-xs text-red-600">{errors.format}</p>}
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label>Tournament period</Label>
+                  <div className="flex items-center gap-0 border border-neutral-300 rounded-md overflow-hidden">
+                    <input
+                      type="date"
+                      value={compStart}
+                      onChange={(e) => setCompStart(e.target.value)}
+                      className="flex-1 px-3 py-2 text-sm bg-white focus:outline-none"
+                    />
+                    <span className="text-neutral-400 px-2 shrink-0">&rarr;</span>
+                    <input
+                      type="date"
+                      value={compEnd}
+                      onChange={(e) => setCompEnd(e.target.value)}
+                      className="flex-1 px-3 py-2 text-sm bg-white focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Venue</Label>
+                  <Input value={eventVenue} onChange={(e) => setEventVenue(e.target.value)} placeholder="e.g. Our Tampines Hub, Kallang Sports Hall" />
+                </div>
                 <div className="space-y-2">
                   <Label>Capacity</Label>
                   <Input type="number" min={1} value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="Max participants or teams (optional)" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Competition start</Label>
-                  <Input type="date" value={compStart} onChange={(e) => setCompStart(e.target.value)} />
+                  <Label>Registration window</Label>
+                  <div className="flex items-center gap-0 border border-neutral-300 rounded-md overflow-hidden">
+                    <input
+                      type="date"
+                      value={regOpen}
+                      onChange={(e) => setRegOpen(e.target.value)}
+                      className="flex-1 px-3 py-2 text-sm bg-white focus:outline-none"
+                    />
+                    <span className="text-neutral-400 px-2 shrink-0">&rarr;</span>
+                    <input
+                      type="date"
+                      value={regClose}
+                      onChange={(e) => setRegClose(e.target.value)}
+                      className="flex-1 px-3 py-2 text-sm bg-white focus:outline-none"
+                    />
+                  </div>
+                  <p className="text-xs text-neutral-500">Inherited from sport. Override per event if needed.</p>
                 </div>
                 <div className="space-y-2">
-                  <Label>Competition end</Label>
-                  <Input type="date" value={compEnd} onChange={(e) => setCompEnd(e.target.value)} />
+                  <Label>Last date for user to make changes</Label>
+                  <Input type="date" value={lastChangeDate} onChange={(e) => setLastChangeDate(e.target.value)} />
+                  <p className="text-xs text-neutral-500">Inherited from sport. After this date, participants cannot modify their registration.</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Who can participate */}
+          {/* Eligibility */}
           <Card>
             <CardContent>
-              <h3 className="text-base font-semibold text-neutral-900 pb-4 border-b border-neutral-200 mb-4">Who can participate</h3>
+              <h3 className="text-base font-semibold text-neutral-900 pb-4 border-b border-neutral-200 mb-4">Eligibility</h3>
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Gender</Label>
@@ -261,6 +299,28 @@ export function CreateEvent() {
                   </div>
                   {hasMaxAge && (
                     <Input type="number" min={1} value={maxAge} onChange={(e) => setMaxAge(e.target.value)} placeholder="e.g. 54" />
+                  )}
+                </div>
+
+                <div className="border-t border-neutral-200 pt-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Additional eligibility requirements</Label>
+                      <p className="text-xs text-neutral-500 mt-0.5">Specify other requirements for each athlete</p>
+                    </div>
+                    <Switch checked={hasAdditionalEligibility} onCheckedChange={(c) => setHasAdditionalEligibility(c as boolean)} />
+                  </div>
+                  {hasAdditionalEligibility && (
+                    <div className="space-y-2 mt-3">
+                      <Label>Each participant must be...</Label>
+                      <Textarea
+                        value={additionalEligibility}
+                        onChange={(e) => setAdditionalEligibility(e.target.value)}
+                        rows={4}
+                        placeholder="One requirement per line"
+                      />
+                      <p className="text-xs text-neutral-500">Enter one requirement per line.</p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -325,30 +385,9 @@ export function CreateEvent() {
                       </div>
                     </div>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     <Label>Foreigner quota</Label>
-                    <div className="flex gap-4">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="fq" checked={foreignerQuota === 'general_rnr_default'} onChange={() => setForeignerQuota('general_rnr_default')} className="h-4 w-4 accent-neutral-900" />
-                        <span className="text-sm">Use General R&R default</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="fq" checked={foreignerQuota === 'custom'} onChange={() => setForeignerQuota('custom')} className="h-4 w-4 accent-neutral-900" />
-                        <span className="text-sm">Custom override</span>
-                      </label>
-                    </div>
-                    {foreignerQuota === 'custom' && (
-                      <div className="flex gap-4 pt-2">
-                        <div className="flex-1 space-y-1">
-                          <span className="text-xs text-neutral-500">Min SG/PR ratio</span>
-                          <Input type="number" step="0.1" min={0} max={1} value={customMinSgPr} onChange={(e) => setCustomMinSgPr(e.target.value)} />
-                        </div>
-                        <div className="flex-1 space-y-1">
-                          <span className="text-xs text-neutral-500">Max foreigners</span>
-                          <Input type="number" min={0} value={customMaxForeigners} onChange={(e) => setCustomMaxForeigners(e.target.value)} />
-                        </div>
-                      </div>
-                    )}
+                    <p className="text-sm text-neutral-600">General R&R default applies</p>
                   </div>
                   {isCorporate && (
                     <div className="space-y-2 border-t border-neutral-200 pt-4">
@@ -393,6 +432,29 @@ export function CreateEvent() {
                           </div>
                         </div>
                         <p className="text-xs text-neutral-500">Age is calculated from the child's year of birth.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Additional team eligibility */}
+                  <div className="border-t border-neutral-200 pt-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Additional team eligibility requirements</Label>
+                        <p className="text-xs text-neutral-500 mt-0.5">Specify any requirements that apply to the whole team</p>
+                      </div>
+                      <Switch checked={hasTeamAdditionalEligibility} onCheckedChange={(c) => setHasTeamAdditionalEligibility(c as boolean)} />
+                    </div>
+                    {hasTeamAdditionalEligibility && (
+                      <div className="space-y-2 mt-3">
+                        <Label>Each member must be...</Label>
+                        <Textarea
+                          value={teamAdditionalEligibility}
+                          onChange={(e) => setTeamAdditionalEligibility(e.target.value)}
+                          rows={4}
+                          placeholder="One requirement per line"
+                        />
+                        <p className="text-xs text-neutral-500">Enter one requirement per line.</p>
                       </div>
                     )}
                   </div>
@@ -451,60 +513,18 @@ export function CreateEvent() {
               sportName={sport.name}
               categoryName={workspace.categories.find((c) => c.id === categoryId)?.name}
               venue={sport.venue}
+              additionalEligibility={hasAdditionalEligibility ? additionalEligibility.split('\n').filter((l) => l.trim()) : undefined}
+              teamAdditionalEligibility={hasTeamAdditionalEligibility ? teamAdditionalEligibility.split('\n').filter((l) => l.trim()) : undefined}
+              registrationCloseDate={regClose || undefined}
+              lastChangeDate={lastChangeDate || undefined}
             />
           </PreviewPanel>
 
           <div className="flex items-center justify-end gap-3">
             <Button variant="outline" onClick={() => navigate(`/sports/${sportId}`)}>Cancel</Button>
-            <Button onClick={handleNext}>Next</Button>
+            <Button onClick={handleSave}>Create event</Button>
           </div>
         </div>
-      )}
-
-      {step === 2 && (
-        <div className="max-w-2xl space-y-6">
-          {isTeamEvent && (
-            <FormBuilder
-              section="team"
-              title="Team details questions"
-              helperText="These questions appear in the Team details section of the registration form for this event."
-              questions={eventQuestions.filter((q) => q.appliesTo === 'team')}
-              onChange={(updated) => {
-                const athleteQs = eventQuestions.filter((q) => q.appliesTo === 'athlete')
-                setEventQuestions([...updated, ...athleteQs])
-              }}
-            />
-          )}
-          <FormBuilder
-            section="athlete"
-            title="Athlete details questions"
-            helperText="These questions appear in the Athlete details section of the registration form for this event."
-            questions={eventQuestions.filter((q) => q.appliesTo === 'athlete')}
-            onChange={(updated) => {
-              const teamQs = eventQuestions.filter((q) => q.appliesTo === 'team')
-              setEventQuestions([...teamQs, ...updated])
-            }}
-          />
-
-          {/* Preview */}
-          <PreviewPanel label="Participant view — Registration form">
-            <RegistrationFormPreview
-              event={{
-                isTeamEvent,
-                requireApproval,
-                fee,
-              }}
-              sportQuestions={sport.customQuestions}
-              eventQuestions={eventQuestions}
-            />
-          </PreviewPanel>
-
-          <div className="flex items-center justify-end gap-3">
-            <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
-            <Button onClick={handleSave}>Save event</Button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

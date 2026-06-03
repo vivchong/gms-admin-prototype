@@ -8,9 +8,13 @@ type Props = {
   sportName: string
   categoryName?: string
   venue?: string
+  additionalEligibility?: string[]
+  teamAdditionalEligibility?: string[]
+  registrationCloseDate?: string
+  lastChangeDate?: string
 }
 
-export function EventDetailsPreview({ event, sportName, categoryName, venue }: Props) {
+export function EventDetailsPreview({ event, sportName, categoryName, venue, additionalEligibility, teamAdditionalEligibility, registrationCloseDate, lastChangeDate }: Props) {
   const workspace = useStore((s) => s.workspace)
 
   const genderLabel: Record<string, string> = { male: 'Male', female: 'Female', mixed: 'Male or Female' }
@@ -28,16 +32,19 @@ export function EventDetailsPreview({ event, sportName, categoryName, venue }: P
   }
   if (event.ageRange?.minAge) {
     if (event.ageRange.maxAge) {
-      eligibility.push(`Between ${event.ageRange.minAge} and ${event.ageRange.maxAge} years old this year`)
+      eligibility.push(`${event.ageRange.minAge} to ${event.ageRange.maxAge} years old this year`)
     } else {
       eligibility.push(`At least ${event.ageRange.minAge} years old this year`)
     }
+  } else if (event.ageRange?.maxAge) {
+    eligibility.push(`Up to ${event.ageRange.maxAge} years old this year`)
   }
   eligibility.push('A Singapore citizen, permanent resident or foreigner with valid pass')
 
   const compStart = event.competitionDates?.start
   const compEnd = event.competitionDates?.end
-  const regClose = workspace.registrationWindow.end
+  const regClose = registrationCloseDate || workspace.registrationWindow.end
+  const changeDeadline = lastChangeDate
 
   return (
     <div className="font-[Inter,system-ui,sans-serif] text-[#282828] text-sm">
@@ -65,14 +72,20 @@ export function EventDetailsPreview({ event, sportName, categoryName, venue }: P
         )}
       </div>
 
-      {/* Eligibility */}
-      {eligibility.length > 0 && (
+      {/* Eligibility — individual (non-team) */}
+      {!event.isTeamEvent && eligibility.length > 0 && (
         <div className="mb-5">
           <h3 className="text-base font-semibold mb-2">Eligibility</h3>
           <p className="text-xs text-neutral-600 mb-2">Each participant must be:</p>
           <div className="space-y-2">
             {eligibility.map((item, i) => (
               <div key={i} className="flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 text-neutral-400 mt-0.5 shrink-0" />
+                <span className="text-xs">{item}</span>
+              </div>
+            ))}
+            {additionalEligibility && additionalEligibility.map((item, i) => (
+              <div key={`add-${i}`} className="flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-neutral-400 mt-0.5 shrink-0" />
                 <span className="text-xs">{item}</span>
               </div>
@@ -84,21 +97,61 @@ export function EventDetailsPreview({ event, sportName, categoryName, venue }: P
       {/* Team eligibility */}
       {event.isTeamEvent && (
         <div className="mb-5">
-          <h3 className="text-base font-semibold mb-2">Team requirements</h3>
-          <div className="space-y-1.5 text-xs text-neutral-700">
-            {event.minTeamMembers && event.maxTeamMembers && (
-              <p>Team size: {event.minTeamMembers} – {event.maxTeamMembers} members</p>
-            )}
-            {event.teamEligibility?.genderMix && (
-              <p>Gender mix: {genderMixLabels[event.teamEligibility.genderMix] || event.teamEligibility.genderMix}</p>
-            )}
-            {event.teamEligibility?.foreignerQuota === 'general_rnr_default' && (
-              <p>Foreigner quota: General R&R applies</p>
-            )}
-            {event.teamEligibility?.corporateStaffRatio && (
-              <p>Minimum {Math.round(event.teamEligibility.corporateStaffRatio * 100)}% company staff</p>
-            )}
-          </div>
+          <h3 className="text-base font-semibold mb-2">Team eligibility</h3>
+
+          {/* Your team must have */}
+          {(event.minTeamMembers || event.maxTeamMembers || event.teamEligibility?.foreignerQuota || (teamAdditionalEligibility && teamAdditionalEligibility.length > 0)) && (
+            <div className="mb-4">
+              <p className="text-xs font-medium text-neutral-800 mb-2">Your team must have:</p>
+              <div className="space-y-2">
+                {event.minTeamMembers && event.maxTeamMembers && (
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-neutral-400 mt-0.5 shrink-0" />
+                    <span className="text-xs">{event.minTeamMembers} to {event.maxTeamMembers} members</span>
+                  </div>
+                )}
+                {event.teamEligibility?.foreignerQuota === 'general_rnr_default' && (
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-neutral-400 mt-0.5 shrink-0" />
+                    <span className="text-xs">At least 70% Singapore citizens or permanent residents</span>
+                  </div>
+                )}
+                {event.teamEligibility?.corporateStaffRatio && (
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-neutral-400 mt-0.5 shrink-0" />
+                    <span className="text-xs">Minimum {Math.round(event.teamEligibility.corporateStaffRatio * 100)}% company staff</span>
+                  </div>
+                )}
+                {teamAdditionalEligibility && teamAdditionalEligibility.map((item, i) => (
+                  <div key={`tadd-${i}`} className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-neutral-400 mt-0.5 shrink-0" />
+                    <span className="text-xs">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Each member must be */}
+          {eligibility.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-neutral-800 mb-2">Each member must be:</p>
+              <div className="space-y-2">
+                {eligibility.map((item, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-neutral-400 mt-0.5 shrink-0" />
+                    <span className="text-xs">{item}</span>
+                  </div>
+                ))}
+                {additionalEligibility && additionalEligibility.map((item, i) => (
+                  <div key={`add-${i}`} className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-neutral-400 mt-0.5 shrink-0" />
+                    <span className="text-xs">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -112,30 +165,77 @@ export function EventDetailsPreview({ event, sportName, categoryName, venue }: P
       {/* Next steps */}
       <div className="mb-5">
         <h3 className="text-base font-semibold mb-3">Next steps</h3>
-        <div className="flex gap-3">
-          <div className="flex flex-col items-center">
-            <div className="w-2 h-2 rounded-full bg-neutral-900" />
-            <div className="w-px flex-1 bg-neutral-300" />
-            <div className="w-2 h-2 rounded-full bg-neutral-300" />
-          </div>
-          <div className="space-y-4 flex-1 pb-1">
-            <div>
-              <p className="text-xs font-semibold">Register and pay</p>
-              {regClose && (
-                <span className="inline-block mt-1 text-[10px] border border-neutral-300 rounded px-1.5 py-0.5">
-                  By {format(new Date(regClose), 'd MMM yyyy')}
-                </span>
-              )}
-              {event.requireApproval && (
-                <p className="text-[10px] text-neutral-600 mt-1">Registrations require admin approval before confirmation.</p>
-              )}
+        {event.isTeamEvent ? (
+          <div className="space-y-4">
+            {/* Step 1: Register team and pay */}
+            <div className="flex gap-3">
+              <div className="flex flex-col items-center">
+                <div className="w-3 h-3 rounded-full bg-neutral-900 shrink-0" />
+                <div className="w-0.5 flex-1 bg-neutral-300 mt-1" />
+              </div>
+              <div className="flex-1 pb-2">
+                <p className="text-xs font-semibold mb-1">Register team and pay</p>
+                {regClose && (
+                  <span className="inline-block mb-1 text-[10px] border border-neutral-300 rounded px-1.5 py-0.5">
+                    By {format(new Date(regClose), 'd MMM yyyy')}
+                  </span>
+                )}
+                <p className="text-[10px] text-neutral-600">Only one person needs to register and pay for the team. This person will be the team manager.</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs font-semibold">Play!</p>
-              <p className="text-[10px] text-neutral-600">Schedule will be released around 2 weeks before the event begins.</p>
+            {/* Step 2: Add members to team */}
+            <div className="flex gap-3">
+              <div className="flex flex-col items-center">
+                <div className="w-3 h-3 rounded-full border-2 border-neutral-300 shrink-0" />
+                <div className="w-0.5 flex-1 bg-neutral-300 mt-1" />
+              </div>
+              <div className="flex-1 pb-2">
+                <p className="text-xs font-semibold mb-1">Add members to team</p>
+                {changeDeadline && (
+                  <span className="inline-block mb-1 text-[10px] border border-neutral-300 rounded px-1.5 py-0.5">
+                    By {format(new Date(changeDeadline), 'd MMM yyyy')}
+                  </span>
+                )}
+                <p className="text-[10px] text-neutral-600">Invite members via join link or enter their details manually. Each member must acknowledge the indemnity form.</p>
+              </div>
+            </div>
+            {/* Step 3: Play */}
+            <div className="flex gap-3">
+              <div className="flex flex-col items-center">
+                <div className="w-3 h-3 rounded-full border-2 border-neutral-300 shrink-0" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-semibold">Play!</p>
+                <p className="text-[10px] text-neutral-600">Schedule will be released around 2 weeks before the event begins.</p>
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex gap-3">
+            <div className="flex flex-col items-center">
+              <div className="w-2 h-2 rounded-full bg-neutral-900" />
+              <div className="w-px flex-1 bg-neutral-300" />
+              <div className="w-2 h-2 rounded-full bg-neutral-300" />
+            </div>
+            <div className="space-y-4 flex-1 pb-1">
+              <div>
+                <p className="text-xs font-semibold">Register and pay</p>
+                {regClose && (
+                  <span className="inline-block mt-1 text-[10px] border border-neutral-300 rounded px-1.5 py-0.5">
+                    By {format(new Date(regClose), 'd MMM yyyy')}
+                  </span>
+                )}
+                {event.requireApproval && (
+                  <p className="text-[10px] text-neutral-600 mt-1">Registrations require admin approval before confirmation.</p>
+                )}
+              </div>
+              <div>
+                <p className="text-xs font-semibold">Play!</p>
+                <p className="text-[10px] text-neutral-600">Schedule will be released around 2 weeks before the event begins.</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Footer bar */}

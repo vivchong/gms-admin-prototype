@@ -6,6 +6,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -22,17 +28,23 @@ import {
 } from '@/components/ui/dialog'
 import type { FormQuestion } from '@/lib/types'
 
+type DefaultField = {
+  label: string
+  type: string
+}
+
 type Props = {
   section: 'athlete' | 'team'
   title: string
   helperText?: string
   questions: FormQuestion[]
   onChange: (questions: FormQuestion[]) => void
+  defaultFields?: DefaultField[]
 }
 
 const typeLabels: Record<FormQuestion['type'], string> = {
-  short_text: 'Single-line text',
-  long_text: 'Multi-line text',
+  short_text: 'Short answer',
+  long_text: 'Long answer',
   single_select: 'Dropdown',
   file_upload: 'File upload',
 }
@@ -53,7 +65,7 @@ const emptyEditor: EditorState = {
   options: [''],
 }
 
-export function FormBuilder({ section, title, helperText, questions, onChange }: Props) {
+export function FormBuilder({ section, title, helperText, questions, onChange, defaultFields }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editor, setEditor] = useState<EditorState>(emptyEditor)
   const [editorErrors, setEditorErrors] = useState<Record<string, string>>({})
@@ -85,7 +97,7 @@ export function FormBuilder({ section, title, helperText, questions, onChange }:
 
   function saveEditor() {
     const errs: Record<string, string> = {}
-    if (!editor.label.trim()) errs.label = 'Question label is required'
+    if (!editor.label.trim()) errs.label = 'Field label is required'
     if (editor.type === 'single_select') {
       const validOptions = editor.options.filter((o) => o.trim())
       if (validOptions.length < 2) errs.options = 'At least 2 options are required'
@@ -151,6 +163,33 @@ export function FormBuilder({ section, title, helperText, questions, onChange }:
         <h3 className="text-base font-semibold text-neutral-900 pb-4 border-b border-neutral-200 mb-4">{title}</h3>
         {helperText && <p className="text-xs text-neutral-500 mb-4">{helperText}</p>}
 
+        {/* Default fields */}
+        {defaultFields && defaultFields.length > 0 && (
+          <TooltipProvider delayDuration={200}>
+            <div className="mb-2">
+              {defaultFields.map((field, i) => (
+                <Tooltip key={i}>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-start gap-3 py-3 border-b border-neutral-100 cursor-default">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="p-0.5"><ChevronUp className="h-3.5 w-3.5 text-neutral-300" /></span>
+                        <span className="p-0.5"><ChevronDown className="h-3.5 w-3.5 text-neutral-300" /></span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-neutral-400">{field.label}</p>
+                        <p className="text-xs text-neutral-300">{field.type}</p>
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p>Default question for all sports</p>
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
+          </TooltipProvider>
+        )}
+
         {questions.length === 0 && editingId === null && (
           <p className="text-sm text-neutral-500 mb-4">No custom questions added yet.</p>
         )}
@@ -177,8 +216,8 @@ export function FormBuilder({ section, title, helperText, questions, onChange }:
               </button>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-neutral-900 truncate">{q.label}</p>
-              <p className="text-xs text-neutral-500">{typeLabels[q.type]}{q.required ? ' · Required' : ''}</p>
+              <p className="text-sm font-medium text-neutral-900 truncate">{q.label}{!q.required ? ' (optional)' : ''}</p>
+              <p className="text-xs text-neutral-500">{typeLabels[q.type]}</p>
             </div>
             <div className="flex items-center gap-1">
               <button type="button" onClick={() => openEdit(q)} className="p-1.5 rounded hover:bg-neutral-100">
@@ -195,14 +234,14 @@ export function FormBuilder({ section, title, helperText, questions, onChange }:
         {editingId && (
           <div className="mt-4 border border-neutral-200 rounded-lg p-4 bg-neutral-50 space-y-4">
             <div className="space-y-2">
-              <Label>Input type</Label>
+              <Label>Field type</Label>
               <Select value={editor.type} onValueChange={(v) => setEditor((prev) => ({ ...prev, type: v as FormQuestion['type'] }))}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="short_text">Single-line text</SelectItem>
-                  <SelectItem value="long_text">Multi-line text</SelectItem>
+                  <SelectItem value="short_text">Short answer</SelectItem>
+                  <SelectItem value="long_text">Long answer</SelectItem>
                   <SelectItem value="single_select">Dropdown</SelectItem>
                   <SelectItem value="file_upload">File upload</SelectItem>
                 </SelectContent>
@@ -210,7 +249,7 @@ export function FormBuilder({ section, title, helperText, questions, onChange }:
             </div>
 
             <div className="space-y-2">
-              <Label>Question label</Label>
+              <Label>Field label</Label>
               <Input
                 value={editor.label}
                 onChange={(e) => { setEditor((prev) => ({ ...prev, label: e.target.value })); if (editorErrors.label) setEditorErrors((prev) => ({ ...prev, label: '' })) }}

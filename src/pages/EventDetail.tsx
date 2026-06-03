@@ -234,6 +234,9 @@ export function EventDetail() {
                       updateEvent(sportId!, eventId!, { customQuestions: [...updated, ...athleteQs] })
                       toast('Form questions updated')
                     }}
+                    defaultFields={[
+                      { label: 'Team name', type: 'Short answer' },
+                    ]}
                   />
                 )}
                 <FormBuilder
@@ -246,6 +249,15 @@ export function EventDetail() {
                     updateEvent(sportId!, eventId!, { customQuestions: [...teamQs, ...updated] })
                     toast('Form questions updated')
                   }}
+                  defaultFields={[
+                    { label: 'Name of athlete', type: 'Short answer' },
+                    { label: 'NRIC or FIN', type: 'Short answer' },
+                    { label: 'Citizenship / Residency status', type: 'Short answer' },
+                    { label: 'Date of birth', type: 'Short answer' },
+                    { label: 'Gender', type: 'Short answer' },
+                    { label: 'Mobile number', type: 'Short answer' },
+                    { label: 'Email address', type: 'Short answer' },
+                  ]}
                 />
               </div>
             </TabsContent>
