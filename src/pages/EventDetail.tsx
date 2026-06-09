@@ -79,32 +79,6 @@ function SectionHeader({ title, onEdit, editing }: { title: string; onEdit?: () 
   )
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    confirmed: 'bg-emerald-50 text-emerald-700',
-    pending_indemnity: 'bg-amber-50 text-amber-700',
-    refunded: 'bg-neutral-100 text-neutral-700',
-    rejected: 'bg-red-50 text-red-700',
-    waitlisted: 'bg-neutral-100 text-neutral-700',
-    forming: 'bg-amber-50 text-amber-700',
-    complete: 'bg-emerald-50 text-emerald-700',
-  }
-  const labels: Record<string, string> = {
-    confirmed: 'Confirmed',
-    pending_indemnity: 'Pending indemnity',
-    refunded: 'Refunded',
-    rejected: 'Rejected',
-    waitlisted: 'Waitlisted',
-    forming: 'Forming',
-    complete: 'Complete',
-  }
-  return (
-    <Badge variant="secondary" className={styles[status] || 'bg-neutral-100 text-neutral-700'}>
-      {labels[status] || status}
-    </Badge>
-  )
-}
-
 export function EventDetail() {
   const { sportId, eventId } = useParams()
   const navigate = useNavigate()
@@ -121,8 +95,6 @@ export function EventDetail() {
   const category = workspace.categories.find((c) => c.id === event.categoryId)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewTab, setPreviewTab] = useState<'event' | 'form'>('event')
-  const [publishModalOpen, setPublishModalOpen] = useState(false)
-  const [unpublishModalOpen, setUnpublishModalOpen] = useState(false)
 
   const regOpen = sport.registrationOpenAt || workspace.registrationWindow.start
   const regClose = sport.registrationCloseAt || workspace.registrationWindow.end
@@ -132,11 +104,7 @@ export function EventDetail() {
       <div className="bg-white px-8 pt-8 pb-0">
         <PageHeader
           title={event.name}
-          subtitle={
-            event.publicationStatus === 'published' && regOpen && regClose
-              ? `Registration opens on ${formatDate(regOpen)} and closes on ${formatDate(regClose)}`
-              : category?.name
-          }
+          subtitle={undefined}
           breadcrumbs={[
             { label: 'Sports', path: '/sports' },
             { label: sport.name, path: `/sports/${sportId}` },
@@ -148,71 +116,47 @@ export function EventDetail() {
                 <Eye className="h-4 w-4 mr-1.5" />
                 Preview
               </Button>
-              {event.publicationStatus === 'draft' ? (
-                <Button size="sm" onClick={() => setPublishModalOpen(true)}>
-                  Ready to publish
+              {event.publicationStatus === 'registration_open' && (
+                <Button variant="outline" size="sm" onClick={() => { updateEvent(sportId!, eventId!, { publicationStatus: 'registration_paused' }); toast('Registration paused') }}>
+                  Pause registration
                 </Button>
-              ) : (
-                <Button variant="outline" size="sm" onClick={() => setUnpublishModalOpen(true)}>
-                  Unpublish
+              )}
+              {event.publicationStatus === 'registration_paused' && (
+                <Button size="sm" onClick={() => { updateEvent(sportId!, eventId!, { publicationStatus: 'registration_open' }); toast('Registration resumed') }}>
+                  Resume registration
                 </Button>
               )}
               <Badge
                 variant="secondary"
                 className={
-                  event.publicationStatus === 'published'
+                  event.publicationStatus === 'registration_open'
                     ? 'bg-emerald-50 text-emerald-700'
+                    : event.publicationStatus === 'registration_paused'
+                    ? 'bg-amber-50 text-amber-700'
                     : 'bg-neutral-100 text-neutral-700'
                 }
               >
-                {event.publicationStatus === 'published' ? 'Published' : 'Draft'}
+                {event.publicationStatus === 'registration_open' ? 'Registration open' : event.publicationStatus === 'registration_paused' ? 'Registration paused' : 'Registration closed'}
               </Badge>
             </div>
           }
+          extra={
+            regOpen && regClose ? (
+              <div className="mt-3">
+                <span className="inline-flex items-center rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-medium text-blue-700">
+                  Registration window: {formatDate(regOpen)} to {formatDate(regClose)}
+                </span>
+              </div>
+            ) : undefined
+          }
         />
 
-        {/* Publish confirmation modal */}
-        <Dialog open={publishModalOpen} onOpenChange={setPublishModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Publish event</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to publish this event? The event will only accept registrations from the registration start date ({formatDate(regOpen)}) as specified.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setPublishModalOpen(false)}>Cancel</Button>
-              <Button onClick={() => { updateEvent(sportId!, eventId!, { publicationStatus: 'published' }); setPublishModalOpen(false); toast('Event published') }}>
-                Publish
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Unpublish confirmation modal */}
-        <Dialog open={unpublishModalOpen} onOpenChange={setUnpublishModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Unpublish event</DialogTitle>
-              <DialogDescription>
-                This will revert the event back to draft and pause registration if it is currently open. Are you sure you want to continue?
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setUnpublishModalOpen(false)}>Cancel</Button>
-              <Button variant="destructive" onClick={() => { updateEvent(sportId!, eventId!, { publicationStatus: 'draft' }); setUnpublishModalOpen(false); toast('Event reverted to draft') }}>
-                Unpublish
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
         <Tabs defaultValue="overview">
           <TabsList variant="line" className="border-b border-neutral-200">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="form-questions">Additional form questions</TabsTrigger>
             <TabsTrigger value="registrations">Registrations</TabsTrigger>
-            {event.isTeamEvent && <TabsTrigger value="teams">Teams</TabsTrigger>}
           </TabsList>
 
           <div className="bg-neutral-50 -mx-8 px-8 py-6">
@@ -264,11 +208,6 @@ export function EventDetail() {
             <TabsContent value="registrations">
               <RegistrationsTab eventId={eventId!} />
             </TabsContent>
-            {event.isTeamEvent && (
-              <TabsContent value="teams">
-                <TeamsTab eventId={eventId!} />
-              </TabsContent>
-            )}
           </div>
         </Tabs>
       </div>
@@ -337,6 +276,7 @@ function OverviewTab({ event, sport, sportId, updateEvent }: {
   const [capacity, setCapacity] = useState(event.capacity?.toString() || '')
   const [compStart, setCompStart] = useState(event.competitionDates?.start || '')
   const [compEnd, setCompEnd] = useState(event.competitionDates?.end || '')
+  const [feeOverride, setFeeOverride] = useState(event.fee?.toString() || '')
 
   // Who can participate edit state
   const [gender, setGender] = useState<string>(event.gender || '')
@@ -375,7 +315,7 @@ function OverviewTab({ event, sport, sportId, updateEvent }: {
       categoryId,
       capacity: capacity ? parseInt(capacity) : undefined,
       competitionDates: compStart && compEnd ? { start: compStart, end: compEnd } : undefined,
-      fee: computeFee(),
+      fee: feeOverride ? parseFloat(feeOverride) : computeFee(),
     })
     setEditingSection(null)
     toast('Event details updated')
@@ -410,6 +350,7 @@ function OverviewTab({ event, sport, sportId, updateEvent }: {
     setCapacity(event.capacity?.toString() || '')
     setCompStart(event.competitionDates?.start || '')
     setCompEnd(event.competitionDates?.end || '')
+    setFeeOverride(event.fee?.toString() || '')
     setEditingSection(null)
   }
 
@@ -477,6 +418,11 @@ function OverviewTab({ event, sport, sportId, updateEvent }: {
                 <Label>Competition end</Label>
                 <Input type="date" value={compEnd} onChange={(e) => setCompEnd(e.target.value)} />
               </div>
+              <div className="space-y-2">
+                <Label>Registration fee (S$)</Label>
+                <Input type="number" min={0} step="0.01" value={feeOverride} onChange={(e) => setFeeOverride(e.target.value)} placeholder="Leave blank to auto-calculate" />
+                <p className="text-xs text-neutral-500">Override the fee for this event, or leave blank to use the workspace fee structure.</p>
+              </div>
               <div className="flex gap-2 pt-4">
                 <Button size="sm" onClick={saveDetails} disabled={!name.trim()}>Save</Button>
                 <Button size="sm" variant="outline" onClick={cancelDetails}>Cancel</Button>
@@ -489,7 +435,7 @@ function OverviewTab({ event, sport, sportId, updateEvent }: {
               <Field label="Category" value={category?.name || '—'} />
               <Field label="Capacity" value={event.capacity?.toString() || '—'} />
               <Field label="Competition dates" value={event.competitionDates ? `${formatDate(event.competitionDates.start)} – ${formatDate(event.competitionDates.end)}` : '—'} />
-              <Field label="Calculated fee" value={event.fee !== undefined ? `S$${event.fee.toFixed(2)}${event.isTeamEvent ? ' per team' : ' per participant'}` : '—'} />
+              <Field label="Registration fee" value={event.fee !== undefined ? `S$${event.fee.toFixed(2)}${event.isTeamEvent ? ' per team' : ' per participant'}` : '—'} />
             </div>
           )}
         </CardContent>
@@ -889,7 +835,7 @@ function RegistrationsTab({ eventId }: { eventId: string }) {
 
       {/* Detail side panel */}
       <Sheet open={!!selectedItem} onOpenChange={(open) => { if (!open) setSelectedItem(null) }}>
-        <SheetContent side="right" className="w-[480px] sm:max-w-[480px] overflow-hidden p-0">
+        <SheetContent side="right" className="w-[50vw] sm:max-w-[50vw] overflow-hidden p-0">
           {selectedItem?.kind === 'individual' && (
             <EventRegIndividualPanel
               reg={selectedItem.reg}
@@ -1128,46 +1074,3 @@ function EventRegTeamPanel({
   )
 }
 
-function TeamsTab({ eventId }: { eventId: string }) {
-  const workspace = useStore((s) => s.workspace)
-  const teams = workspace.teams.filter((t) => t.eventId === eventId)
-
-  if (teams.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-12 text-center">
-          <p className="text-sm text-neutral-500">No teams yet for this event.</p>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  return (
-    <div className="rounded-xl border border-neutral-200 bg-white">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Team name</TableHead>
-            <TableHead>Members</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {teams.map((team) => {
-            const manager = workspace.registrations.find((r) => r.id === team.managerRegistrationId)
-            return (
-              <TableRow key={team.id}>
-                <TableCell>
-                  <p className="font-medium text-sm">{team.name}</p>
-                  {manager && <p className="text-xs text-neutral-500">Manager: {manager.participantName}</p>}
-                </TableCell>
-                <TableCell>{team.memberRegistrationIds.length} / {team.minMembers}–{team.maxMembers}</TableCell>
-                <TableCell><StatusBadge status={team.status} /></TableCell>
-              </TableRow>
-            )
-          })}
-        </TableBody>
-      </Table>
-    </div>
-  )
-}

@@ -1,9 +1,9 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Workspace, Sport, SportEvent, DocumentReview } from './types'
+import type { Workspace, Sport, SportEvent, DocumentReview, Registration, Team } from './types'
 import { injectDemoData } from './demoInjector'
 
-const STORE_VERSION = 6
+const STORE_VERSION = 8
 
 function createSeedWorkspace(): Workspace {
   return {
@@ -133,7 +133,10 @@ type StoreState = {
   updateSport: (sportId: string, updates: Partial<Sport>) => void
   saveEvent: (sportId: string, event: SportEvent) => void
   updateEvent: (sportId: string, eventId: string, updates: Partial<SportEvent>) => void
+  deleteEvent: (sportId: string, eventId: string) => void
   updateDocumentReview: (reviewId: string, updates: Partial<DocumentReview>) => void
+  addRegistrations: (registrations: Registration[]) => void
+  addTeams: (teams: Team[]) => void
   resetPrototype: () => void
 }
 
@@ -218,6 +221,19 @@ export const useStore = create<StoreState>()(
         }))
       },
 
+      deleteEvent: (sportId: string, eventId: string) => {
+        set((state) => ({
+          workspace: {
+            ...state.workspace,
+            sports: state.workspace.sports.map((s) =>
+              s.id === sportId
+                ? { ...s, events: s.events.filter((e) => e.id !== eventId) }
+                : s
+            ),
+          },
+        }))
+      },
+
       updateDocumentReview: (reviewId: string, updates: Partial<DocumentReview>) => {
         set((state) => ({
           workspace: {
@@ -225,6 +241,24 @@ export const useStore = create<StoreState>()(
             documentReviews: state.workspace.documentReviews.map((dr) =>
               dr.id === reviewId ? { ...dr, ...updates } : dr
             ),
+          },
+        }))
+      },
+
+      addRegistrations: (registrations: Registration[]) => {
+        set((state) => ({
+          workspace: {
+            ...state.workspace,
+            registrations: [...state.workspace.registrations, ...registrations],
+          },
+        }))
+      },
+
+      addTeams: (teams: Team[]) => {
+        set((state) => ({
+          workspace: {
+            ...state.workspace,
+            teams: [...state.workspace.teams, ...teams],
           },
         }))
       },

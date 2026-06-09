@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { MoreHorizontal, Plus, Search, Trash2, PlusCircle } from 'lucide-react'
+import { MoreHorizontal, Plus, Search, Trash2, PlusCircle, Copy, FileText, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -83,18 +83,6 @@ export function SportDetail() {
     return null
   }
 
-  function openEditModal() {
-    setEditName(sport!.name)
-    setEditDescription(sport!.description || '')
-    setEditVenue(sport!.venue || '')
-    setEditCompStart(sport!.competitionDates.start)
-    setEditCompEnd(sport!.competitionDates.end)
-    setEditRegOpen(sport!.registrationOpenAt || '')
-    setEditRegClose(sport!.registrationCloseAt || '')
-    setEditLastChange(sport!.lastChangeDate || '')
-    setEditModalOpen(true)
-  }
-
   function saveEdit() {
     updateSport(sportId!, {
       name: editName.trim(),
@@ -109,8 +97,6 @@ export function SportDetail() {
     toast('Sport updated')
   }
 
-  const pricingLabel = sport.pricingType === 'per_event' ? 'Per event' : 'Bundle'
-
   return (
     <div className="-m-8">
       {/* White header area */}
@@ -124,12 +110,6 @@ export function SportDetail() {
           ]}
           actions={
             <div className="flex items-center gap-2">
-              <Badge
-                variant="secondary"
-                className="bg-neutral-100 text-neutral-700"
-              >
-                {sport.events.some((e) => e.publicationStatus === 'published') ? 'Has published events' : 'Draft'}
-              </Badge>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="h-8 w-8 p-0">
@@ -157,29 +137,12 @@ export function SportDetail() {
               <p className="text-sm text-neutral-900">{sport.description}</p>
             </div>
           )}
-          <div className="space-y-2">
-            <div>
-              <p className="text-xs text-neutral-500">Registration window</p>
-              <p className="text-sm text-neutral-900">{formatDate(sport.registrationOpenAt)} – {formatDate(sport.registrationCloseAt)}</p>
-            </div>
-            {sport.lastChangeDate && (
-              <div>
-                <p className="text-xs text-neutral-500">Last date for registration changes</p>
-                <p className="text-sm text-neutral-900">{formatDate(sport.lastChangeDate)}</p>
-              </div>
-            )}
-          </div>
-          <div>
-            <p className="text-xs text-neutral-500">Competition period</p>
-            <p className="text-sm text-neutral-900">{formatDate(sport.competitionDates.start)} – {formatDate(sport.competitionDates.end)}</p>
-          </div>
-          
         </div>
 
 <Tabs defaultValue="events">
           <TabsList variant="line" className="border-b border-neutral-200">
             <TabsTrigger value="events">Events</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
+            <TabsTrigger value="settings">Sport details</TabsTrigger>
             <TabsTrigger value="rules">Rules</TabsTrigger>
             <TabsTrigger value="form-questions">Additional form questions</TabsTrigger>
           </TabsList>
@@ -298,8 +261,11 @@ export function SportDetail() {
 function EventsTab({ sport, sportId }: { sport: ReturnType<typeof useStore.getState>['workspace']['sports'][number]; sportId: string }) {
   const navigate = useNavigate()
   const workspace = useStore((s) => s.workspace)
+  const updateEvent = useStore((s) => s.updateEvent)
+  const deleteEvent = useStore((s) => s.deleteEvent)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [deleteModalEvent, setDeleteModalEvent] = useState<{ id: string; name: string } | null>(null)
 
   const events = sport.events
   const filteredEvents = events.filter((ev) => {
@@ -367,14 +333,16 @@ function EventsTab({ sport, sportId }: { sport: ReturnType<typeof useStore.getSt
               <TableHead>Gender</TableHead>
               <TableHead>Age range</TableHead>
               <TableHead>Fee</TableHead>
+              <TableHead>Last date for changes</TableHead>
               <TableHead>Registrations</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="w-[120px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredEvents.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7}>
+                <TableCell colSpan={9}>
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <p className="text-sm font-medium text-neutral-900 mb-1">
                       {search || categoryFilter !== 'all' ? 'No matching events' : 'No events yet'}
@@ -388,35 +356,102 @@ function EventsTab({ sport, sportId }: { sport: ReturnType<typeof useStore.getSt
                 </TableCell>
               </TableRow>
             )}
-            {filteredEvents.map((ev) => (
-              <TableRow
-                key={ev.id}
-                className="cursor-pointer"
-                onClick={() => navigate(`/sports/${sportId}/events/${ev.id}`)}
-              >
-                <TableCell className="font-medium">{ev.name}</TableCell>
-                <TableCell>{getCategoryName(ev.categoryId)}</TableCell>
-                <TableCell className="capitalize">{ev.gender || '—'}</TableCell>
-                <TableCell>{getAgeRange(ev)}</TableCell>
-                <TableCell>{getFee(ev)}</TableCell>
-                <TableCell>{getRegistrationCount(ev.id)}</TableCell>
-                <TableCell>
-                  <Badge
-                    variant="secondary"
-                    className={
-                      ev.publicationStatus === 'published'
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : 'bg-neutral-100 text-neutral-700'
-                    }
-                  >
-                    {ev.publicationStatus === 'published' ? 'Published' : 'Draft'}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
+            {filteredEvents.map((ev) => {
+              const regCount = getRegistrationCount(ev.id)
+              return (
+                <TableRow
+                  key={ev.id}
+                  className="cursor-pointer"
+                  onClick={() => navigate(`/sports/${sportId}/events/${ev.id}`)}
+                >
+                  <TableCell className="font-medium">{ev.name}</TableCell>
+                  <TableCell>{getCategoryName(ev.categoryId)}</TableCell>
+                  <TableCell className="capitalize">{ev.gender || '—'}</TableCell>
+                  <TableCell>{getAgeRange(ev)}</TableCell>
+                  <TableCell>{getFee(ev)}</TableCell>
+                  <TableCell className="text-sm text-neutral-500">{formatDate(sport.lastChangeDate)}</TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-700">
+                      {ev.capacity ? `${regCount}/${ev.capacity} slots` : `${regCount} registered`}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="secondary"
+                      className={
+                        ev.publicationStatus === 'registration_open'
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : ev.publicationStatus === 'registration_paused'
+                          ? 'bg-amber-50 text-amber-700'
+                          : 'bg-neutral-100 text-neutral-700'
+                      }
+                    >
+                      {ev.publicationStatus === 'registration_open' ? 'Registration open' : ev.publicationStatus === 'registration_paused' ? 'Registration paused' : 'Registration closed'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      {ev.publicationStatus === 'registration_open' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => { updateEvent(sportId, ev.id, { publicationStatus: 'registration_paused' }); toast('Registration paused') }}
+                        >
+                          Pause
+                        </Button>
+                      )}
+                      {ev.publicationStatus === 'registration_paused' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => { updateEvent(sportId, ev.id, { publicationStatus: 'registration_open' }); toast('Registration resumed') }}
+                        >
+                          Resume
+                        </Button>
+                      )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                            <MoreHorizontal className="h-4 w-4 rotate-90" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onClick={() => setDeleteModalEvent({ id: ev.id, name: ev.name })}
+                          >
+                            Delete event
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </div>
+
+      {/* Delete event confirmation modal */}
+      <Dialog open={!!deleteModalEvent} onOpenChange={(open) => { if (!open) setDeleteModalEvent(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete event</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{deleteModalEvent?.name}"? This action cannot be undone. All registrations for this event will also be removed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteModalEvent(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => { deleteEvent(sportId, deleteModalEvent!.id); setDeleteModalEvent(null); toast('Event deleted') }}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -564,20 +599,12 @@ function SettingsTab({ sport, sportId, updateSport }: {
   sportId: string
   updateSport: (id: string, updates: Partial<typeof sport>) => void
 }) {
-  const workspace = useStore((s) => s.workspace)
-
   const [editingDetails, setEditingDetails] = useState(false)
   const [detailName, setDetailName] = useState(sport.name)
   const [detailPricing, setDetailPricing] = useState(sport.pricingType)
   const [detailDescription, setDetailDescription] = useState(sport.description || '')
   const [detailVenue, setDetailVenue] = useState(sport.venue || '')
 
-  const [editingTimelines, setEditingTimelines] = useState(false)
-  const [tlRegOpen, setTlRegOpen] = useState(sport.registrationOpenAt || '')
-  const [tlRegClose, setTlRegClose] = useState(sport.registrationCloseAt || '')
-  const [tlLastChange, setTlLastChange] = useState(sport.lastChangeDate || '')
-  const [tlCompStart, setTlCompStart] = useState(sport.competitionDates.start)
-  const [tlCompEnd, setTlCompEnd] = useState(sport.competitionDates.end)
 
   const [editingFormats, setEditingFormats] = useState(false)
   const [fmtList, setFmtList] = useState<string[]>(sport.formats || [])
@@ -601,25 +628,6 @@ function SettingsTab({ sport, sportId, updateSport }: {
     setEditingDetails(false)
   }
 
-  function saveTimelines() {
-    updateSport(sportId, {
-      registrationOpenAt: tlRegOpen || undefined,
-      registrationCloseAt: tlRegClose || undefined,
-      lastChangeDate: tlLastChange || undefined,
-      competitionDates: { start: tlCompStart, end: tlCompEnd },
-    })
-    setEditingTimelines(false)
-    toast('Timelines updated')
-  }
-
-  function cancelTimelines() {
-    setTlRegOpen(sport.registrationOpenAt || '')
-    setTlRegClose(sport.registrationCloseAt || '')
-    setTlLastChange(sport.lastChangeDate || '')
-    setTlCompStart(sport.competitionDates.start)
-    setTlCompEnd(sport.competitionDates.end)
-    setEditingTimelines(false)
-  }
 
   function saveFormats() {
     const filled = fmtList.map((f) => f.trim()).filter(Boolean)
@@ -634,7 +642,6 @@ function SettingsTab({ sport, sportId, updateSport }: {
   }
 
   const pricingLabel = sport.pricingType === 'per_event' ? 'Per event' : 'Bundle'
-  void workspace
 
   return (
     <div className="space-y-6">
@@ -705,72 +712,44 @@ function SettingsTab({ sport, sportId, updateSport }: {
         </CardContent>
       </Card>
 
-      {/* Timelines & schedules */}
+      {/* Rules & Regulations */}
       <Card className="py-0 gap-0">
         <CardContent className="p-0">
-          <div className="px-6 py-4 border-b border-neutral-200 flex items-center justify-between">
-            <h3 className="text-base font-semibold text-neutral-900">Timelines & schedules</h3>
-            {!editingTimelines && (
-              <Button variant="outline" size="sm" onClick={() => setEditingTimelines(true)}>Edit</Button>
-            )}
+          <div className="px-6 py-4 border-b border-neutral-200">
+            <h3 className="text-base font-semibold text-neutral-900">Rules & Regulations</h3>
           </div>
           <div className="px-6 py-6">
-            {editingTimelines ? (
-              <div className="space-y-4">
-                <div>
-                  <Label className="mb-2 block">Registration window</Label>
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <Label className="text-xs text-neutral-500 font-normal">Opens</Label>
-                      <Input type="date" value={tlRegOpen} onChange={(e) => setTlRegOpen(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-neutral-500 font-normal">Closes</Label>
-                      <Input type="date" value={tlRegClose} onChange={(e) => setTlRegClose(e.target.value)} />
-                    </div>
-                  </div>
-                </div>
-                <div className="border-t border-neutral-200 pt-4 space-y-2">
-                  <Label>Last date for registration changes</Label>
-                  <Input type="date" value={tlLastChange} onChange={(e) => setTlLastChange(e.target.value)} />
-                </div>
-                <div className="border-t border-neutral-200 pt-4">
-                  <Label className="mb-2 block">Competition period</Label>
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <Label className="text-xs text-neutral-500 font-normal">Start date</Label>
-                      <Input type="date" value={tlCompStart} onChange={(e) => setTlCompStart(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-neutral-500 font-normal">End date</Label>
-                      <Input type="date" value={tlCompEnd} onChange={(e) => setTlCompEnd(e.target.value)} />
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <Button size="sm" onClick={saveTimelines}>Save</Button>
-                  <Button size="sm" variant="outline" onClick={cancelTimelines}>Cancel</Button>
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText className="h-4 w-4 text-blue-600 shrink-0" />
+                <a
+                  href="https://www.activesgcircle.gov.sg/hubfs/GetActive%20Singapore/GetActive%20Singapore%202026/Rules%20and%20Regulations/Pickleball/Pickleball%20R%26R%20Pesta%20Sukan%202026.pdf"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:text-blue-700 hover:underline truncate"
+                >
+                  {sport.name} R&R Pesta Sukan 2027.pdf
+                  <ExternalLink className="inline h-3 w-3 ml-1 relative -top-px" />
+                </a>
               </div>
-            ) : (
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs text-neutral-500">Registration window</p>
-                  <p className="text-sm text-neutral-900">{formatDate(sport.registrationOpenAt)} – {formatDate(sport.registrationCloseAt)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-neutral-500">Last date for registration changes</p>
-                  <p className="text-sm text-neutral-900">{formatDate(sport.lastChangeDate)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-neutral-500">Competition period</p>
-                  <p className="text-sm text-neutral-900">{formatDate(sport.competitionDates.start)} – {formatDate(sport.competitionDates.end)}</p>
-                </div>
-              </div>
-            )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => {
+                  navigator.clipboard.writeText('https://www.activesgcircle.gov.sg/hubfs/GetActive%20Singapore/GetActive%20Singapore%202026/Rules%20and%20Regulations/Pickleball/Pickleball%20R%26R%20Pesta%20Sukan%202026.pdf')
+                  toast('Link copied to clipboard')
+                }}
+              >
+                <Copy className="h-3.5 w-3.5 mr-1.5" />
+                Copy link
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
+
 
       {/* Format filters */}
       <Card className="py-0 gap-0">

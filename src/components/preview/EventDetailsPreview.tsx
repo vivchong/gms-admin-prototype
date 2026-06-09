@@ -12,19 +12,13 @@ type Props = {
   teamAdditionalEligibility?: string[]
   registrationCloseDate?: string
   lastChangeDate?: string
+  compDatesConfirmed?: boolean
 }
 
-export function EventDetailsPreview({ event, sportName, categoryName, venue, additionalEligibility, teamAdditionalEligibility, registrationCloseDate, lastChangeDate }: Props) {
+export function EventDetailsPreview({ event, sportName, categoryName, venue, additionalEligibility, teamAdditionalEligibility, registrationCloseDate, lastChangeDate, compDatesConfirmed }: Props) {
   const workspace = useStore((s) => s.workspace)
 
   const genderLabel: Record<string, string> = { male: 'Male', female: 'Female', mixed: 'Male or Female' }
-  const genderMixLabels: Record<string, string> = {
-    all_male: 'All male',
-    all_female: 'All female',
-    mixed_any: 'Mixed (no constraint)',
-    mixed_min_one_female: 'At least 1 female per team',
-    mixed_min_one_male: 'At least 1 male per team',
-  }
 
   const eligibility: string[] = []
   if (event.gender && event.gender !== 'mixed') {
@@ -57,7 +51,7 @@ export function EventDetailsPreview({ event, sportName, categoryName, venue, add
             <CalendarDays className="h-3.5 w-3.5 text-neutral-500 mt-0.5 shrink-0" />
             <div>
               <p className="text-[10px] text-neutral-500">Tournament dates</p>
-              <p className="text-xs">{format(new Date(compStart), 'd MMMM')} – {format(new Date(compEnd), 'd MMMM yyyy')}</p>
+              <p className="text-xs">{format(new Date(compStart), 'd MMMM')} – {format(new Date(compEnd), 'd MMMM yyyy')}{compDatesConfirmed === false ? ' (Tentative)' : ''}</p>
             </div>
           </div>
         )}

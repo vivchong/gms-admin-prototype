@@ -226,7 +226,6 @@ export function DocumentReview() {
                   <TableHead className="text-xs">Participant</TableHead>
                   <TableHead className="text-xs">Sport</TableHead>
                   <TableHead className="text-xs">Event</TableHead>
-                  <TableHead className="text-xs">Document type</TableHead>
                   <TableHead className="text-xs">Uploaded</TableHead>
                   <TableHead className="text-xs">Days waiting</TableHead>
                   <TableHead className="text-xs">Status</TableHead>
@@ -235,7 +234,7 @@ export function DocumentReview() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-sm text-neutral-500 py-8">
+                    <TableCell colSpan={6} className="text-center text-sm text-neutral-500 py-8">
                       No documents match the current filters.
                     </TableCell>
                   </TableRow>
@@ -249,7 +248,6 @@ export function DocumentReview() {
                       <TableCell className="text-sm font-medium">{dr.participantName}</TableCell>
                       <TableCell className="text-sm text-neutral-700">{getSportName(dr.sportId)}</TableCell>
                       <TableCell className="text-sm text-neutral-700">{dr.eventName}</TableCell>
-                      <TableCell className="text-sm text-neutral-700">{docTypeLabels[dr.documentType]}</TableCell>
                       <TableCell className="text-sm text-neutral-500">{format(new Date(dr.uploadedAt), 'd MMM yyyy')}</TableCell>
                       <TableCell className="text-sm text-neutral-500">{getDaysWaiting(dr.uploadedAt)}d</TableCell>
                       <TableCell>
@@ -362,7 +360,6 @@ function DetailPanel({
 
           {/* Document header */}
           <DetailSection title="Document">
-            <DetailField label="Type" value={docTypeLabels[review.documentType]} />
             <DetailField label="File name" value={review.fileName} />
             <DetailField label="Uploaded" value={format(new Date(review.uploadedAt), 'd MMM yyyy, h:mm a')} />
             <div className="pt-2">

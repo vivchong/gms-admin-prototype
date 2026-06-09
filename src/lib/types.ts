@@ -104,7 +104,7 @@ export type SportEvent = {
   childAgeRange?: { minAge?: number; maxAge?: number }
   requireApproval: boolean
   customQuestions: FormQuestion[]
-  publicationStatus: 'draft' | 'published'
+  publicationStatus: 'registration_closed' | 'registration_open' | 'registration_paused'
   _demoSeeded?: boolean
 }
 

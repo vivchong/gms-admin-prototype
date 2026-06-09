@@ -11,9 +11,10 @@ type PageHeaderProps = {
   subtitle?: string
   breadcrumbs?: Breadcrumb[]
   actions?: React.ReactNode
+  extra?: React.ReactNode
 }
 
-export function PageHeader({ title, subtitle, breadcrumbs, actions }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, breadcrumbs, actions, extra }: PageHeaderProps) {
   const navigate = useNavigate()
 
   return (
@@ -46,6 +47,7 @@ export function PageHeader({ title, subtitle, breadcrumbs, actions }: PageHeader
         </div>
         {actions && <div className="flex items-center gap-2">{actions}</div>}
       </div>
+      {extra}
     </div>
   )
 }

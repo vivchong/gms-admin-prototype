@@ -93,7 +93,7 @@ export function injectDemoData(
     isParentChildEvent: false,
     requireApproval: false,
     customQuestions: [],
-    publicationStatus: 'published',
+    publicationStatus: 'registration_open',
     _demoSeeded: true,
   }
 
@@ -108,7 +108,7 @@ export function injectDemoData(
     isParentChildEvent: false,
     requireApproval: true,
     customQuestions: [],
-    publicationStatus: 'published',
+    publicationStatus: 'registration_open',
     _demoSeeded: true,
   }
 
@@ -133,7 +133,7 @@ export function injectDemoData(
     isParentChildEvent: false,
     requireApproval: true,
     customQuestions: [],
-    publicationStatus: 'published',
+    publicationStatus: 'registration_open',
     _demoSeeded: true,
   }
 
@@ -145,7 +145,7 @@ export function injectDemoData(
   const userEventFee = sport.events.find((e) => e.id === firstEventId)?.fee || 25
   registrations.push(makeReg(1, SG_NAMES[0], sportId, userEventCat, firstEventId, 'confirmed', userEventFee))
   registrations.push(makeReg(2, SG_NAMES[1], sportId, userEventCat, firstEventId, 'confirmed', userEventFee))
-  registrations.push(makeReg(3, SG_NAMES[2], sportId, userEventCat, firstEventId, 'confirmed', userEventFee))
+  registrations.push(makeReg(3, SG_NAMES[2], sportId, userEventCat, firstEventId, 'pending_indemnity', userEventFee))
   registrations.push(makeReg(4, SG_NAMES[3], sportId, userEventCat, firstEventId, 'confirmed', userEventFee))
 
   // Youth U13 — 2 pending_indemnity (minors registered by parent) + 1 confirmed
@@ -169,8 +169,8 @@ export function injectDemoData(
   // Corporate Team Event — 4 members (team forming)
   const teamId = 'team-demo-sunrise'
   registrations.push(makeReg(11, SG_NAMES[8], sportId, 'cat-corporate', corpEvent.id, 'confirmed', 15, { teamId, registeredByRelationship: 'self' }))
-  registrations.push(makeReg(12, SG_NAMES[9], sportId, 'cat-corporate', corpEvent.id, 'confirmed', 15, { teamId, registeredByRelationship: 'team_manager', registeredByName: SG_NAMES[8].name }))
-  registrations.push(makeReg(13, SG_NAMES[10], sportId, 'cat-corporate', corpEvent.id, 'confirmed', 15, { teamId, registeredByRelationship: 'team_manager', registeredByName: SG_NAMES[8].name }))
+  registrations.push(makeReg(12, SG_NAMES[9], sportId, 'cat-corporate', corpEvent.id, 'pending_indemnity', 15, { teamId, registeredByRelationship: 'team_manager', registeredByName: SG_NAMES[8].name }))
+  registrations.push(makeReg(13, SG_NAMES[10], sportId, 'cat-corporate', corpEvent.id, 'pending_indemnity', 15, { teamId, registeredByRelationship: 'team_manager', registeredByName: SG_NAMES[8].name }))
   registrations.push(makeReg(14, SG_NAMES[11], sportId, 'cat-corporate', corpEvent.id, 'confirmed', 15, { teamId, registeredByRelationship: 'team_manager', registeredByName: SG_NAMES[8].name }))
 
   // 1 refunded in user's event
@@ -182,8 +182,8 @@ export function injectDemoData(
   registrations.push(makeReg(17, SG_NAMES[14], sportId, 'cat-corporate', corpEvent.id, 'confirmed', 15, { teamId: team2Id, registeredByRelationship: 'team_manager', registeredByName: SG_NAMES[13].name }))
   registrations.push(makeReg(18, SG_NAMES[15], sportId, 'cat-corporate', corpEvent.id, 'confirmed', 15, { teamId: team2Id, registeredByRelationship: 'team_manager', registeredByName: SG_NAMES[13].name }))
   registrations.push(makeReg(19, SG_NAMES[16], sportId, 'cat-corporate', corpEvent.id, 'confirmed', 15, { teamId: team2Id, registeredByRelationship: 'team_manager', registeredByName: SG_NAMES[13].name }))
-  registrations.push(makeReg(20, SG_NAMES[0], sportId, 'cat-corporate', corpEvent.id, 'confirmed', 15, { teamId: team2Id, registeredByRelationship: 'team_manager', registeredByName: SG_NAMES[13].name }))
-  registrations.push(makeReg(21, SG_NAMES[1], sportId, 'cat-corporate', corpEvent.id, 'confirmed', 15, { teamId: team2Id, registeredByRelationship: 'team_manager', registeredByName: SG_NAMES[13].name }))
+  registrations.push(makeReg(20, SG_NAMES[0], sportId, 'cat-corporate', corpEvent.id, 'pending_indemnity', 15, { teamId: team2Id, registeredByRelationship: 'team_manager', registeredByName: SG_NAMES[13].name }))
+  registrations.push(makeReg(21, SG_NAMES[1], sportId, 'cat-corporate', corpEvent.id, 'pending_indemnity', 15, { teamId: team2Id, registeredByRelationship: 'team_manager', registeredByName: SG_NAMES[13].name }))
   registrations.push(makeReg(22, SG_NAMES[2], sportId, 'cat-corporate', corpEvent.id, 'confirmed', 15, { teamId: team2Id, registeredByRelationship: 'team_manager', registeredByName: SG_NAMES[13].name }))
 
   // 3. Create teams

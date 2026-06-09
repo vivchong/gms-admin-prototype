@@ -114,16 +114,19 @@ export function Sports() {
                 <TableCell>{getEventCount(sport.id)}</TableCell>
                 <TableCell>{getRegistrationCount(sport.id)}</TableCell>
                 <TableCell>
-                  <Badge
-                    variant="secondary"
-                    className={
-                      sport.publicationStatus === 'published'
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : 'bg-neutral-100 text-neutral-700'
-                    }
-                  >
-                    {sport.publicationStatus === 'published' ? 'Published' : 'Draft'}
-                  </Badge>
+                  {sport.events.some((e) => e.publicationStatus === 'registration_open') ? (
+                    <Badge variant="secondary" className="bg-emerald-50 text-emerald-700">
+                      Registration open
+                    </Badge>
+                  ) : sport.events.some((e) => e.publicationStatus === 'registration_paused') ? (
+                    <Badge variant="secondary" className="bg-amber-50 text-amber-700">
+                      Registration paused
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="bg-neutral-100 text-neutral-700">
+                      Registration closed
+                    </Badge>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

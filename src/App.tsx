@@ -8,6 +8,7 @@ import { SportDetail } from '@/pages/SportDetail'
 import { CreateEvent } from '@/pages/CreateEvent'
 import { EventDetail } from '@/pages/EventDetail'
 import { Registrations } from '@/pages/Registrations'
+import { BulkCreateRegistrations } from '@/pages/BulkCreateRegistrations'
 import { DocumentReview } from '@/pages/DocumentReview'
 import { SettingsPage } from '@/pages/Settings'
 import {
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/sports/:sportId/events/new" element={<CreateEvent />} />
           <Route path="/sports/:sportId/events/:eventId" element={<EventDetail />} />
           <Route path="/registrations" element={<Registrations />} />
+          <Route path="/registrations/bulk-create" element={<BulkCreateRegistrations />} />
           <Route path="/document-review" element={<DocumentReview />} />
           <Route path="/refunds" element={<RefundsPayments />} />
           <Route path="/indemnity" element={<Indemnity />} />

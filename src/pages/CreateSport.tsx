@@ -32,11 +32,6 @@ export function CreateSport() {
   const [pricingType, setPricingType] = useState<'per_event' | 'bundle'>('per_event')
   const [venue, setVenue] = useState('')
   const [hasUploadedFile, setHasUploadedFile] = useState(false)
-  const [competitionStart, setCompetitionStart] = useState(workspace.dateRange.start)
-  const [competitionEnd, setCompetitionEnd] = useState(workspace.dateRange.end)
-  const [registrationOpen, setRegistrationOpen] = useState(workspace.registrationWindow.start)
-  const [registrationClose, setRegistrationClose] = useState(workspace.registrationWindow.end)
-  const [lastChangeDate, setLastChangeDate] = useState('')
   const [formats, setFormats] = useState<string[]>(['', ''])
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -64,10 +59,7 @@ export function CreateSport() {
       pricingType,
       description: undefined,
       venue: venue.trim() || undefined,
-      competitionDates: { start: competitionStart, end: competitionEnd },
-      registrationOpenAt: registrationOpen || undefined,
-      registrationCloseAt: registrationClose || undefined,
-      lastChangeDate: lastChangeDate || undefined,
+      competitionDates: { start: workspace.dateRange.start, end: workspace.dateRange.end },
       formats: filledFormats.length > 0 ? filledFormats : undefined,
       exemptCategoryIds: [],
       customQuestions: [],
@@ -113,6 +105,9 @@ export function CreateSport() {
 
             <div className="space-y-2">
               <Label htmlFor="pricing">Pricing type</Label>
+              <p className="text-xs text-neutral-500">
+                Per event charges each registration individually. Bundle pricing is not active for this prototype.
+              </p>
               <Select value={pricingType} onValueChange={(v) => setPricingType(v as 'per_event' | 'bundle')}>
                 <SelectTrigger id="pricing" className="w-full">
                   <SelectValue />
@@ -122,9 +117,6 @@ export function CreateSport() {
                   <SelectItem value="bundle">Bundle</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-neutral-500">
-                Per event charges each registration individually. Bundle pricing is not active for this prototype.
-              </p>
             </div>
 
 
@@ -182,90 +174,12 @@ export function CreateSport() {
           </CardContent>
         </Card>
 
-        {/* Section 2: Timelines & schedules */}
-        <Card className="py-0 gap-0">
-          <CardContent className="p-0">
-            <div className="px-6 py-4 border-b border-neutral-200">
-              <h2 className="text-base font-semibold text-neutral-900">Timelines & schedules</h2>
-            </div>
-            <div className="px-6 py-6 space-y-6">
-            <div>
-              <h3 className="text-sm font-medium text-neutral-900 mb-4">Registration window</h3>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="reg-open">Opens</Label>
-                  <Input
-                    id="reg-open"
-                    type="date"
-                    value={registrationOpen}
-                    onChange={(e) => setRegistrationOpen(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="reg-close">Closes</Label>
-                  <Input
-                    id="reg-close"
-                    type="date"
-                    value={registrationClose}
-                    onChange={(e) => setRegistrationClose(e.target.value)}
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-neutral-500 mt-2">
-                Defaults to the workspace registration window. Override per sport if needed.
-              </p>
-            </div>
-
-            <div className="border-t border-neutral-200 pt-6">
-              <div className="space-y-2">
-                <Label htmlFor="last-change">Last date for registration changes</Label>
-                <Input
-                  id="last-change"
-                  type="date"
-                  value={lastChangeDate}
-                  onChange={(e) => setLastChangeDate(e.target.value)}
-                />
-                <p className="text-xs text-neutral-500">
-                  After this date, participants cannot modify their registration details or team members.
-                </p>
-              </div>
-            </div>
-
-            <div className="border-t border-neutral-200 pt-6">
-              <h3 className="text-sm font-medium text-neutral-900 mb-4">Competition period</h3>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="comp-start">Start date</Label>
-                  <Input
-                    id="comp-start"
-                    type="date"
-                    value={competitionStart}
-                    onChange={(e) => setCompetitionStart(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="comp-end">End date</Label>
-                  <Input
-                    id="comp-end"
-                    type="date"
-                    value={competitionEnd}
-                    onChange={(e) => setCompetitionEnd(e.target.value)}
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-neutral-500 mt-2">
-                Defaults to the workspace competition window. Override per sport if needed.
-              </p>
-            </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Section 3: Format filters */}
         <Card className="py-0 gap-0">
           <CardContent className="p-0">
             <div className="px-6 py-4 border-b border-neutral-200">
-              <h2 className="text-base font-semibold text-neutral-900">Format filters</h2>
+              <h2 className="text-base font-semibold text-neutral-900">Allow users to filter by formats</h2>
             </div>
             <div className="px-6 py-6 space-y-6">
               <p className="text-sm text-neutral-700">
@@ -319,10 +233,8 @@ export function CreateSport() {
               {/* Preview */}
               {formats.some((f) => f.trim()) && (
                 <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xs text-neutral-500">Preview</span>
-                  </div>
-                  <div className="border border-dashed border-neutral-300 rounded-xl bg-neutral-50 p-4 max-w-[220px]">
+                  <p className="text-sm font-medium text-neutral-700 mb-3">Preview</p>
+                  <div className="border border-dashed border-neutral-300 rounded-xl p-4 max-w-[220px]">
                     <div className="space-y-0">
                       <div className="flex items-center justify-between pb-2 border-b border-neutral-200">
                         <span className="text-xs font-semibold text-neutral-900">Filters</span>

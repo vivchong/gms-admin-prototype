@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -15,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { format } from 'date-fns'
 import { useStore } from '@/lib/store'
 import { PreviewPanel } from '@/components/preview/PreviewPanel'
 import { EventDetailsPreview } from '@/components/preview/EventDetailsPreview'
@@ -35,9 +37,10 @@ export function CreateEvent() {
   const [capacity, setCapacity] = useState('')
   const [compStart, setCompStart] = useState(sport?.competitionDates.start || '')
   const [compEnd, setCompEnd] = useState(sport?.competitionDates.end || '')
+  const [compDatesConfirmed, setCompDatesConfirmed] = useState(false)
   const [eventVenue, setEventVenue] = useState(sport?.venue || '')
-  const [regOpen, setRegOpen] = useState(sport?.registrationOpenAt || '')
-  const [regClose, setRegClose] = useState(sport?.registrationCloseAt || '')
+  const [regOpen, setRegOpen] = useState(workspace.registrationWindow.start)
+  const [regClose, setRegClose] = useState(workspace.registrationWindow.end)
   const [lastChangeDate, setLastChangeDate] = useState(sport?.lastChangeDate || '')
   const [gender, setGender] = useState<'male' | 'female' | 'mixed' | ''>('')
   const [minAge, setMinAge] = useState('')
@@ -60,6 +63,8 @@ export function CreateEvent() {
   const [isParentChild, setIsParentChild] = useState(false)
   const [childMinAge, setChildMinAge] = useState('')
   const [childMaxAge, setChildMaxAge] = useState('')
+  const [hasFeeOverride, setHasFeeOverride] = useState(false)
+  const [feeOverride, setFeeOverride] = useState('')
   const [requireApproval, setRequireApproval] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const formRef = useRef<HTMLDivElement>(null)
@@ -82,6 +87,7 @@ export function CreateEvent() {
 
 
   function computeFee(): number | undefined {
+    if (hasFeeOverride && feeOverride) return parseFloat(feeOverride)
     if (!categoryId) return undefined
     const catFees = workspace.feeStructure.perCategory[categoryId]
     if (!catFees) return undefined
@@ -138,7 +144,7 @@ export function CreateEvent() {
       childAgeRange: isTeamEvent && isParentChild ? { minAge: childMinAge ? parseInt(childMinAge) : undefined, maxAge: childMaxAge ? parseInt(childMaxAge) : undefined } : undefined,
       requireApproval,
       customQuestions: [],
-      publicationStatus: 'draft',
+      publicationStatus: 'registration_closed',
     }
 
     saveEvent(sportId!, event)
@@ -171,7 +177,7 @@ export function CreateEvent() {
                   <Input
                     value={name}
                     onChange={(e) => { setName(e.target.value); if (errors.name) setErrors((prev) => ({ ...prev, name: '' })) }}
-                    placeholder="e.g. Open Women's Singles"
+                    placeholder="e.g. Women's Open Singles"
                     className={errors.name ? 'border-red-500 focus-visible:ring-red-500' : ''}
                   />
                   {errors.name && <p className="text-xs text-red-600">{errors.name}</p>}
@@ -208,7 +214,7 @@ export function CreateEvent() {
                   </div>
                 )}
                 <div className="space-y-2">
-                  <Label>Tournament period</Label>
+                  <Label>Competition period</Label>
                   <div className="flex items-center gap-0 border border-neutral-300 rounded-md overflow-hidden">
                     <input
                       type="date"
@@ -224,6 +230,10 @@ export function CreateEvent() {
                       className="flex-1 px-3 py-2 text-sm bg-white focus:outline-none"
                     />
                   </div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox checked={compDatesConfirmed} onCheckedChange={(c) => setCompDatesConfirmed(c === true)} />
+                    <span className="text-sm text-neutral-700">The competition period dates are confirmed.</span>
+                  </label>
                 </div>
                 <div className="space-y-2">
                   <Label>Venue</Label>
@@ -235,27 +245,49 @@ export function CreateEvent() {
                 </div>
                 <div className="space-y-2">
                   <Label>Registration window</Label>
-                  <div className="flex items-center gap-0 border border-neutral-300 rounded-md overflow-hidden">
+                  <p className="text-xs text-neutral-500">By default, registration should open on {workspace.registrationWindow.start ? format(new Date(workspace.registrationWindow.start + 'T00:00:00'), 'd MMM yyyy') : '—'}</p>
+                  <div className="flex items-center gap-0 border border-neutral-200 rounded-md overflow-hidden">
                     <input
                       type="date"
                       value={regOpen}
                       onChange={(e) => setRegOpen(e.target.value)}
-                      className="flex-1 px-3 py-2 text-sm bg-white focus:outline-none"
+                      className="flex-1 px-3 py-2 text-sm bg-white"
                     />
                     <span className="text-neutral-400 px-2 shrink-0">&rarr;</span>
                     <input
                       type="date"
                       value={regClose}
                       onChange={(e) => setRegClose(e.target.value)}
-                      className="flex-1 px-3 py-2 text-sm bg-white focus:outline-none"
+                      className="flex-1 px-3 py-2 text-sm bg-white"
                     />
                   </div>
-                  <p className="text-xs text-neutral-500">Inherited from sport. Override per event if needed.</p>
                 </div>
                 <div className="space-y-2">
                   <Label>Last date for user to make changes</Label>
+                  <p className="text-xs text-neutral-500">After this date, team managers or athletes cannot edit their registration details.</p>
                   <Input type="date" value={lastChangeDate} onChange={(e) => setLastChangeDate(e.target.value)} />
-                  <p className="text-xs text-neutral-500">Inherited from sport. After this date, participants cannot modify their registration.</p>
+                </div>
+                <div className="border-t border-neutral-200 pt-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Override registration fee</Label>
+                      <p className="text-xs text-neutral-500 mt-0.5">Registration fee is auto-calculated. You can override it if your event does not follow the default fee structure.</p>
+                    </div>
+                    <Switch checked={hasFeeOverride} onCheckedChange={(c) => { setHasFeeOverride(c as boolean); if (!c) setFeeOverride('') }} />
+                  </div>
+                  {hasFeeOverride && (
+                    <div className="space-y-2 mt-3">
+                      <Label>Registration fee (S$)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={feeOverride}
+                        onChange={(e) => setFeeOverride(e.target.value)}
+                        placeholder="e.g. 25.00"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -286,8 +318,8 @@ export function CreateEvent() {
                 </div>
                 <div className="space-y-2">
                   <Label>Minimum age</Label>
-                  <Input type="number" min={1} value={minAge} onChange={(e) => setMinAge(e.target.value)} placeholder="e.g. 16" />
                   <p className="text-xs text-neutral-500">Age is calculated from the participant's year of birth.</p>
+                  <Input type="number" min={1} value={minAge} onChange={(e) => setMinAge(e.target.value)} placeholder="e.g. 16" />
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -313,13 +345,13 @@ export function CreateEvent() {
                   {hasAdditionalEligibility && (
                     <div className="space-y-2 mt-3">
                       <Label>Each participant must be...</Label>
+                      <p className="text-xs text-neutral-500">Enter one requirement per line.</p>
                       <Textarea
                         value={additionalEligibility}
                         onChange={(e) => setAdditionalEligibility(e.target.value)}
                         rows={4}
                         placeholder="One requirement per line"
                       />
-                      <p className="text-xs text-neutral-500">Enter one requirement per line.</p>
                     </div>
                   )}
                 </div>
@@ -421,6 +453,7 @@ export function CreateEvent() {
                     {isParentChild && (
                       <div className="space-y-2 mt-3">
                         <Label>Child age range</Label>
+                        <p className="text-xs text-neutral-500">Age is calculated from the child's year of birth.</p>
                         <div className="flex gap-4">
                           <div className="flex-1 space-y-1">
                             <span className="text-xs text-neutral-500">Min age</span>
@@ -431,7 +464,6 @@ export function CreateEvent() {
                             <Input type="number" min={1} placeholder="e.g. 12" value={childMaxAge} onChange={(e) => setChildMaxAge(e.target.value)} />
                           </div>
                         </div>
-                        <p className="text-xs text-neutral-500">Age is calculated from the child's year of birth.</p>
                       </div>
                     )}
                   </div>
@@ -448,13 +480,13 @@ export function CreateEvent() {
                     {hasTeamAdditionalEligibility && (
                       <div className="space-y-2 mt-3">
                         <Label>Each member must be...</Label>
+                        <p className="text-xs text-neutral-500">Enter one requirement per line.</p>
                         <Textarea
                           value={teamAdditionalEligibility}
                           onChange={(e) => setTeamAdditionalEligibility(e.target.value)}
                           rows={4}
                           placeholder="One requirement per line"
                         />
-                        <p className="text-xs text-neutral-500">Enter one requirement per line.</p>
                       </div>
                     )}
                   </div>
@@ -476,18 +508,6 @@ export function CreateEvent() {
             </CardContent>
           </Card>
 
-          {/* Calculated fee at bottom */}
-          {fee !== undefined && (
-            <Card>
-              <CardContent>
-                <div className="rounded-lg bg-neutral-50 border border-neutral-200 px-4 py-3">
-                  <p className="text-xs text-neutral-500 mb-0.5">Calculated fee</p>
-                  <p className="text-sm font-medium text-neutral-900">S${fee.toFixed(2)}{isTeamEvent && minTeamMembers ? ' per team' : ' per participant'}</p>
-                  <p className="text-xs text-neutral-500 mt-1">Auto-calculated from the workspace fee structure. Edit at workspace level.</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Preview */}
           <PreviewPanel label="Participant view — Event page">
@@ -517,6 +537,7 @@ export function CreateEvent() {
               teamAdditionalEligibility={hasTeamAdditionalEligibility ? teamAdditionalEligibility.split('\n').filter((l) => l.trim()) : undefined}
               registrationCloseDate={regClose || undefined}
               lastChangeDate={lastChangeDate || undefined}
+              compDatesConfirmed={compDatesConfirmed}
             />
           </PreviewPanel>
 
